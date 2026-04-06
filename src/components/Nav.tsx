@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { ShoppingBasket, Menu, X, LogOut, ChevronDown, ShoppingCart } from "lucide-react";
+import { ShoppingBasket, Menu, X, LogOut, ChevronDown, ShoppingCart, ScanBarcode, CreditCard, Settings, Package, User, Heart, Bell, HelpCircle, Truck, Grid, Wallet, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/context/CartContext";
 
@@ -103,13 +103,16 @@ export default function Nav({ user }: Props) {
 
                     {/* ── Desktop right section ── */}
                     <div className="hidden md:flex items-center gap-3">
-
-                        <p className="text-sm text-gray-400 font-medium">
-                            Welcome back,{" "}
-                            <span className="text-white font-semibold capitalize">{user.name.split(" ")[0]}</span>
-                        </p>
-
-                        <div className="w-px h-5 bg-white/10" />
+                        {/* Self Checkout — only for users */}
+                        {user.role === "user" && (
+                            <Link
+                                href="/self-checkout"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200"
+                            >
+                                <CreditCard className="w-4 h-4 text-teal-400" />
+                                <span className="hidden lg:inline">Self Checkout</span>
+                            </Link>
+                        )}
 
                         {/* Cart button — only for users */}
                         {user.role === "user" && openCart && (
@@ -162,7 +165,33 @@ export default function Nav({ user }: Props) {
                                             <p className="text-sm font-semibold text-white capitalize">{user.name}</p>
                                             <p className="text-xs text-gray-400 truncate">{user.email}</p>
                                         </div>
-                                        <div className="p-2">
+                                        <div className="p-2 space-y-1">
+                                            <Link href="/profile" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/5 font-medium transition-all duration-150 cursor-pointer">
+                                                <User className="w-4 h-4 shrink-0 text-indigo-400" />
+                                                My Profile
+                                            </Link>
+                                            <Link href="/orders" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/5 font-medium transition-all duration-150 cursor-pointer">
+                                                <Package className="w-4 h-4 shrink-0 text-amber-400" />
+                                                My Orders
+                                            </Link>
+                                            <Link href="/track-order" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/5 font-medium transition-all duration-150 cursor-pointer">
+                                                <Truck className="w-4 h-4 shrink-0 text-orange-400" />
+                                                Track Order
+                                            </Link>
+                                            <Link href="/wallet" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/5 font-medium transition-all duration-150 cursor-pointer">
+                                                <Wallet className="w-4 h-4 shrink-0 text-purple-400" />
+                                                Gift Cards & Wallet
+                                            </Link>
+                                            <Link href="/rewards" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/5 font-medium transition-all duration-150 cursor-pointer">
+                                                <Tag className="w-4 h-4 shrink-0 text-emerald-400" />
+                                                Coupons & Offers
+                                            </Link>
+                                            <Link href="/wishlist" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/5 font-medium transition-all duration-150 cursor-pointer">
+                                                <Heart className="w-4 h-4 shrink-0 text-pink-400" />
+                                                Wishlist
+                                            </Link>
+                                        </div>
+                                        <div className="p-2 border-t border-white/10">
                                             <button
                                                 onClick={() => signOut({ callbackUrl: "/login" })}
                                                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 font-medium transition-all duration-150 cursor-pointer"
@@ -253,6 +282,90 @@ export default function Nav({ user }: Props) {
                                     <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-semibold capitalize shrink-0 ${getRoleColor(user.role)}`}>
                                         {user.role}
                                     </span>
+                                </div>
+
+                                {/* Self Checkout linked feature — only for users */}
+                                {user.role === "user" && (
+                                    <div className="space-y-1.5 mb-1.5">
+                                        <Link
+                                            href="/self-checkout"
+                                            onClick={() => setMenuOpen(false)}
+                                            className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
+                                                <CreditCard className="w-4 h-4 text-teal-400" />
+                                            </div>
+                                            Self Checkout
+                                        </Link>
+                                    </div>
+                                )}
+
+                                {/* Settings link inside drawer */}
+                                <div className="space-y-1.5 pb-2">
+                                    <Link href="/categories" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                                            <Grid className="w-4 h-4 text-cyan-400" />
+                                        </div>
+                                        Shop by Category
+                                    </Link>
+                                    <Link href="/track-order" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                                            <Truck className="w-4 h-4 text-orange-400" />
+                                        </div>
+                                        Track Order
+                                    </Link>
+                                    <Link href="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                                            <User className="w-4 h-4 text-indigo-400" />
+                                        </div>
+                                        My Profile
+                                    </Link>
+                                    <Link href="/orders" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                            <Package className="w-4 h-4 text-amber-400" />
+                                        </div>
+                                        My Orders
+                                    </Link>
+                                    <Link href="/wallet" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                                            <Wallet className="w-4 h-4 text-purple-400" />
+                                        </div>
+                                        Gift Cards & Wallet
+                                    </Link>
+                                    <Link href="/rewards" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                                            <Tag className="w-4 h-4 text-emerald-400" />
+                                        </div>
+                                        Coupons & Offers
+                                    </Link>
+                                    <Link href="/wishlist" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center">
+                                            <Heart className="w-4 h-4 text-pink-400" />
+                                        </div>
+                                        Wishlist
+                                    </Link>
+                                    <Link href="/notifications" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+                                            <Bell className="w-4 h-4 text-yellow-400" />
+                                        </div>
+                                        Notifications
+                                    </Link>
+                                    <Link href="/help" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                                            <HelpCircle className="w-4 h-4 text-green-400" />
+                                        </div>
+                                        Help Center
+                                    </Link>
+                                    <Link
+                                        href="/settings"
+                                        onClick={() => setMenuOpen(false)}
+                                        className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                            <Settings className="w-4 h-4 text-blue-400" />
+                                        </div>
+                                        Settings
+                                    </Link>
                                 </div>
 
                                 <button

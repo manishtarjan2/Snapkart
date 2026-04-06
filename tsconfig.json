@@ -1,29 +1,21 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-<<<<<<< HEAD
     "lib": [
       "dom",
       "dom.iterable",
       "esnext"
     ],
-=======
-    "lib": ["dom", "dom.iterable", "esnext"],
->>>>>>> bafa9275502d3f80c96e7ae5d5e87887f748a526
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-<<<<<<< HEAD
-    "jsx": "preserve",
-=======
     "jsx": "react-jsx",
->>>>>>> bafa9275502d3f80c96e7ae5d5e87887f748a526
     "incremental": true,
     "plugins": [
       {
@@ -31,13 +23,9 @@
       }
     ],
     "paths": {
-<<<<<<< HEAD
       "@/*": [
         "./src/*"
       ]
-=======
-      "@/*": ["./src/*"]
->>>>>>> bafa9275502d3f80c96e7ae5d5e87887f748a526
     }
   },
   "include": [
@@ -46,7 +34,6 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-<<<<<<< HEAD
     "**/*.mts",
     "src/app/api/user/edit-role-mobile",
     "src/app/login"
@@ -54,9 +41,4 @@
   "exclude": [
     "node_modules"
   ]
-=======
-    "**/*.mts"
-  ],
-  "exclude": ["node_modules"]
->>>>>>> bafa9275502d3f80c96e7ae5d5e87887f748a526
 }

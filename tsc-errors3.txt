@@ -1,0 +1,19 @@
+﻿src/lib/db.ts(7,20): error TS2724: '"mongoose"' has no exported member named 'Connection'. Did you mean 'connect'?
+src/lib/db.ts(8,31): error TS2724: '"mongoose"' has no exported member named 'Connection'. Did you mean 'connect'?
+src/lib/db.ts(22,46): error TS2724: '"mongoose"' has no exported member named 'Connection'. Did you mean 'connect'?
+src/lib/db.ts(28,83): error TS2551: Property 'connection' does not exist on type 'typeof import("mongoose")'. Did you mean 'Connection'?
+src/models/delivery.model.ts(37,24): error TS2347: Untyped function calls may not accept type arguments.
+src/models/delivery.model.ts(73,33): error TS2347: Untyped function calls may not accept type arguments.
+src/models/deliveryboy.model.ts(24,27): error TS2347: Untyped function calls may not accept type arguments.
+src/models/deliveryboy.model.ts(47,36): error TS2347: Untyped function calls may not accept type arguments.
+src/models/order.model.ts(68,25): error TS2347: Untyped function calls may not accept type arguments.
+src/models/order.model.ts(76,21): error TS2347: Untyped function calls may not accept type arguments.
+src/models/order.model.ts(121,40): error TS2347: Untyped function calls may not accept type arguments.
+src/models/product.model.ts(29,23): error TS2347: Untyped function calls may not accept type arguments.
+src/models/product.model.ts(56,32): error TS2347: Untyped function calls may not accept type arguments.
+src/models/store-inventory.model.ts(23,30): error TS2347: Untyped function calls may not accept type arguments.
+src/models/store-inventory.model.ts(44,5): error TS2347: Untyped function calls may not accept type arguments.
+src/models/store.model.ts(31,21): error TS2347: Untyped function calls may not accept type arguments.
+src/models/store.model.ts(55,40): error TS2347: Untyped function calls may not accept type arguments.
+src/models/user.model.ts(33,20): error TS2347: Untyped function calls may not accept type arguments.
+src/models/user.model.ts(59,38): error TS2347: Untyped function calls may not accept type arguments.

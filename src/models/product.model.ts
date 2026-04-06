@@ -24,6 +24,10 @@ export interface IProduct {
     inStock: boolean;
     isActive: boolean;       // productAdmin can deactivate
     tags?: string[];
+    /** Analytics: Track views/clicks for trending algorithms */
+    views: number;
+    /** Analytics: Track direct purchases for recommendations */
+    sales: number;
 }
 
 const productSchema = new mongoose.Schema<IProduct>(
@@ -42,6 +46,8 @@ const productSchema = new mongoose.Schema<IProduct>(
         inStock: { type: Boolean, default: false },   // false by default since stock starts at 0
         isActive: { type: Boolean, default: true },
         tags: [{ type: String }],
+        views: { type: Number, default: 0 },
+        sales: { type: Number, default: 0 },
     },
     { timestamps: true }
 );

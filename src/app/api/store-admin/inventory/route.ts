@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
             .lean();
 
         // Attach low-stock flag
-        const result = inventory.map((inv) => ({
+        const result = inventory.map((inv: any) => ({
             ...inv,
             isLowStock: (inv.stock ?? 0) <= (inv.lowStockThreshold ?? 5),
         }));

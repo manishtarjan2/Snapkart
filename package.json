@@ -3,17 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-<<<<<<< HEAD
-    "dev": "next dev --turbopack",
-=======
     "dev": "next dev",
->>>>>>> bafa9275502d3f80c96e7ae5d5e87887f748a526
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-<<<<<<< HEAD
     "@types/bcryptjs": "^2.4.6",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
@@ -21,35 +16,22 @@
     "framer-motion": "^12.34.2",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.562.0",
-    "mongoose": "^8.14.2",
+    "mongoose": "^8.23.0",
     "motion": "^12.24.7",
-    "next": "^15.1.7",
+    "next": "16.1.1",
     "next-auth": "^5.0.0-beta.30",
     "next-cloudinary": "^6.17.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/mongoose": "^5.11.96",
-=======
-    "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
->>>>>>> bafa9275502d3f80c96e7ae5d5e87887f748a526
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-<<<<<<< HEAD
-    "eslint-config-next": "15.1.7",
-=======
     "eslint-config-next": "16.1.1",
->>>>>>> bafa9275502d3f80c96e7ae5d5e87887f748a526
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -1,0 +1,14 @@
+﻿src/lib/db.ts(28,83): error TS2551: Property 'connection' does not exist on type 'typeof import("mongoose")'. Did you mean 'connect'?
+src/models/delivery.model.ts(39,43): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/delivery.model.ts(40,50): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/delivery.model.ts(41,43): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/deliveryboy.model.ts(26,41): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/deliveryboy.model.ts(36,43): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/order.model.ts(69,40): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/order.model.ts(78,41): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/order.model.ts(107,43): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/order.model.ts(110,48): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/store-inventory.model.ts(25,43): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/store-inventory.model.ts(26,45): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/store.model.ts(45,45): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.
+src/models/user.model.ts(51,43): error TS2339: Property 'Types' does not exist on type 'typeof Schema'.

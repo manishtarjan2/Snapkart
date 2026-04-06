@@ -1,0 +1,14 @@
+﻿src/app/api/admin/billing/route.ts(3,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/app/api/delivery-admin/assign/route.ts(4,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/app/api/delivery/assign/route.ts(3,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/app/api/store-admin/inventory/route.ts(6,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/app/api/user/orders/route.ts(3,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/app/api/user/self-checkout/route.ts(3,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/lib/db.ts(1,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/models/delivery.model.ts(1,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/models/deliveryboy.model.ts(1,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/models/order.model.ts(1,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/models/product.model.ts(1,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/models/store-inventory.model.ts(1,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/models/store.model.ts(1,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.
+src/models/user.model.ts(1,22): error TS2307: Cannot find module 'mongoose' or its corresponding type declarations.

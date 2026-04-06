@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShoppingCart, Star, Package, Check } from "lucide-react";
+import { ShoppingCart, Star, Package, Check, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 type GroceryItem = {
   _id: string;
@@ -22,7 +23,35 @@ type GroceryItem = {
 
 export default function GroceryItemCard({ item }: { item: GroceryItem }) {
   const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
   const [added, setAdded] = useState(false);
+
+  const isFavorite = isInWishlist(item._id);
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // Train the trending algorithm: Favoriting implies extremely high interest (view weight)
+    if (!isFavorite) {
+       fetch(`/api/products/${item._id}/track`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ action: "view" })
+       }).catch(() => {});
+    }
+
+    toggleWishlist({
+      _id: item._id,
+      name: item.name,
+      price: item.price,
+      category: item.category,
+      image: item.image,
+      discount: item.discount,
+      inStock: item.inStock,
+      stock: item.stock,
+      isActive: item.isActive,
+    });
+  };
 
   // A product is purchasable only if it's active AND in stock AND has stock qty > 0
   const canBuy = item.isActive !== false && item.inStock && item.stock > 0;
@@ -42,6 +71,13 @@ export default function GroceryItemCard({ item }: { item: GroceryItem }) {
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
+
+    // Train the trending algorithm: Add to cart counts as a strong 'sale' or intent signal
+    fetch(`/api/products/${item._id}/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sale" })
+    }).catch(() => {});
   };
 
   return (
@@ -67,17 +103,27 @@ export default function GroceryItemCard({ item }: { item: GroceryItem }) {
           </div>
         )}
 
-        {/* Category badge */}
-        <span className="absolute top-2 left-2 bg-white/90 backdrop-blur text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm border border-emerald-100 capitalize">
-          {item.category}
-        </span>
-
-        {/* Discount badge */}
-        {item.discount > 0 && canBuy && (
-          <span className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-            -{item.discount}%
+        {/* Badges container */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1.5 items-start z-10">
+          <span className="bg-white/90 backdrop-blur text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm border border-emerald-100 capitalize hover:scale-105 transition-transform">
+            {item.category}
           </span>
-        )}
+          {item.discount > 0 && canBuy && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm hover:scale-105 transition-transform">
+              -{item.discount}%
+            </span>
+          )}
+        </div>
+
+        {/* Favorite Button */}
+        <button
+          onClick={handleToggleFavorite}
+          className="absolute top-2 right-2 p-1.5 bg-white backdrop-blur rounded-full shadow-md border border-gray-100 hover:scale-110 active:scale-95 transition-all duration-200 z-10 cursor-pointer group/fav"
+        >
+          <Heart 
+            className={`w-4 h-4 transition-colors duration-300 ${isFavorite ? "fill-pink-500 text-pink-500" : "text-gray-400 group-hover/fav:text-pink-400"}`} 
+          />
+        </button>
 
         {/* Out of stock overlay — uses inStock AND stock quantity */}
         {!canBuy && (
