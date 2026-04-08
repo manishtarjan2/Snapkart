@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
       { hostname: "res.cloudinary.com" }
     ]
   },
-  experimental: {
-    reactCompiler: true,
-  },
 };
 
 export default nextConfig;

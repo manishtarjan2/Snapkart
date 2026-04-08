@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 // ─── Sub-document: one line-item in a bill/order ────────────────────────────
 
@@ -66,7 +66,7 @@ export interface IOrder {
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
 const orderItemSchema = new mongoose.Schema<IOrderItem>({
-    groceryId: { type: mongoose.Schema.Types.ObjectId, ref: "Grocery" },
+    groceryId: { type: Schema.Types.ObjectId, ref: "Grocery" },
     name: { type: String, required: true },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true },
@@ -75,7 +75,7 @@ const orderItemSchema = new mongoose.Schema<IOrderItem>({
 
 const orderSchema = new mongoose.Schema<IOrder>(
     {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
         items: [orderItemSchema],
         address: {
             fullName: { type: String },
@@ -104,10 +104,10 @@ const orderSchema = new mongoose.Schema<IOrder>(
             enum: ["online", "offline", "selfCheckout"],
             default: "online",
         },
-        store_id: { type: mongoose.Schema.Types.ObjectId, ref: "Store" },
+        store_id: { type: Schema.Types.ObjectId, ref: "Store" },
 
         // Delivery
-        deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: "DeliveryBoy" },
+        deliveryBoyId: { type: Schema.Types.ObjectId, ref: "DeliveryBoy" },
         deliveryOtp: { type: String },
         otpVerified: { type: Boolean, default: false },
 

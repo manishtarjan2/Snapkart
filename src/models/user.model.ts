@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 /** All supported role values in the system */
 export type UserRole =
@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema<IUser>(
             ],
             default: "user",
         },
-        store_id: { type: mongoose.Schema.Types.ObjectId, ref: "Store", default: null },
+        store_id: { type: Schema.Types.ObjectId, ref: "Store", default: null },
         employeeId: { type: String, sparse: true, default: null },
         image: { type: String },
         isBlocked: { type: Boolean, default: false },

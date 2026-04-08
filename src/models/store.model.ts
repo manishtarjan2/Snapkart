@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 /**
  * Store (branch) — updated with manager_id (ref to User).
@@ -42,7 +42,7 @@ const storeSchema = new mongoose.Schema<IStore>(
             coordinates: { type: [Number], default: [0, 0] },
         },
         phone: { type: String },
-        manager_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        manager_id: { type: Schema.Types.ObjectId, ref: "User", default: null },
         isActive: { type: Boolean, default: true },
         commission: { type: Number, default: 0, min: 0, max: 100 },
         deliveryRadiusKm: { type: Number, default: 10 },

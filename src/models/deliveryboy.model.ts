@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 export interface IDeliveryBoy {
     _id?: mongoose.Types.ObjectId;
@@ -23,7 +23,7 @@ export interface IDeliveryBoy {
 
 const deliveryBoySchema = new mongoose.Schema<IDeliveryBoy>(
     {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, unique: true },
+        userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
         name: { type: String, required: true },
         phone: { type: String, required: true },
         vehicleType: { type: String, enum: ["bike", "scooter", "bicycle", "car", "van"], required: true },
@@ -33,7 +33,7 @@ const deliveryBoySchema = new mongoose.Schema<IDeliveryBoy>(
             type: { type: String, enum: ["Point"], default: "Point" },
             coordinates: { type: [Number], default: [0, 0] },
         },
-        store_id: { type: mongoose.Schema.Types.ObjectId, ref: "Store" },
+        store_id: { type: Schema.Types.ObjectId, ref: "Store" },
         totalDeliveries: { type: Number, default: 0 },
         isActive: { type: Boolean, default: true },
     },

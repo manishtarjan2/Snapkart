@@ -25,7 +25,7 @@ const connectDb = async (): Promise<mongoose.Connection> => {
   }
 
   if (!cached!.promise) {
-    cached!.promise = mongoose.connect(mongodburl).then((m: typeof mongoose) => m.connection);
+    cached!.promise = mongoose.connect(mongodburl).then((m) => m.connection);
   }
 
   try {

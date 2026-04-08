@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 /**
  * StoreInventory — stock levels **per store per product**.
@@ -22,8 +22,8 @@ export interface IStoreInventory {
 
 const storeInventorySchema = new mongoose.Schema<IStoreInventory>(
     {
-        store_id: { type: mongoose.Schema.Types.ObjectId, ref: "Store", required: true },
-        product_id: { type: mongoose.Schema.Types.ObjectId, ref: "Grocery", required: true },
+        store_id: { type: Schema.Types.ObjectId, ref: "Store", required: true },
+        product_id: { type: Schema.Types.ObjectId, ref: "Grocery", required: true },
         stock: { type: Number, required: true, default: 0, min: 0 },
         lowStockThreshold: { type: Number, default: 5 },
         store_location: { type: String },

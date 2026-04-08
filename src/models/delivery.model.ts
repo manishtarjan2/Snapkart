@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 /**
  * Delivery — separate tracking document per delivery trip.
@@ -36,9 +36,9 @@ export interface IDelivery {
 
 const deliverySchema = new mongoose.Schema<IDelivery>(
     {
-        order_id: { type: mongoose.Schema.Types.ObjectId, ref: "Order", required: true, unique: true },
-        delivery_boy_id: { type: mongoose.Schema.Types.ObjectId, ref: "DeliveryBoy", required: true },
-        store_id: { type: mongoose.Schema.Types.ObjectId, ref: "Store" },
+        order_id: { type: Schema.Types.ObjectId, ref: "Order", required: true, unique: true },
+        delivery_boy_id: { type: Schema.Types.ObjectId, ref: "DeliveryBoy", required: true },
+        store_id: { type: Schema.Types.ObjectId, ref: "Store" },
         status: {
             type: String,
             enum: ["assigned", "pickedUp", "inTransit", "delivered", "failed", "cancelled"],
