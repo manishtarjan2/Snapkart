@@ -7,7 +7,7 @@ import {
     Package, Tag, BarChart2, ChevronRight, LogOut,
     RefreshCw, CheckCircle, XCircle, Search, PlusCircle,
     Upload, ImageIcon, Pencil, Trash2, Loader2, Hash,
-    Plus, Minus, Boxes, ShieldCheck
+    Plus, Minus, Boxes, ShieldCheck, ScanBarcode, Camera, X
 } from "lucide-react";
 
 interface Product {
@@ -55,6 +55,10 @@ export default function ProductAdminDashboard() {
     const [stockModal, setStockModal] = useState<Product | null>(null);
     const [stockInput, setStockInput] = useState("");
     const [stockSaving, setStockSaving] = useState(false);
+
+    // Barcode scanner state
+    const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+    const [barcodeScanning, setBarcodeScanning] = useState(false);
 
     const notify = (msg: string, type: "ok" | "err" = "ok") => {
         setNotification({ msg, type }); setTimeout(() => setNotification(null), 3500);
@@ -178,6 +182,53 @@ export default function ProductAdminDashboard() {
         }
     };
 
+    // Barcode scanner functions
+    const startBarcodeScanner = useCallback(async () => {
+        try {
+            const { Html5Qrcode } = await import("html5-qrcode");
+            const scanner = new Html5Qrcode("admin-barcode-scanner");
+            await scanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 150 } },
+                (decodedText) => {
+                    setForm(prev => ({ ...prev, barcode: decodedText }));
+                    notify(`Barcode scanned: ${decodedText} ✓`);
+                    scanner.stop().catch(() => {});
+                    setBarcodeScanning(false);
+                    setShowBarcodeScanner(false);
+                },
+                () => { /* ignore scan errors */ }
+            );
+            setBarcodeScanning(true);
+            (window as any).__adminBarcodeScanner = scanner;
+        } catch (err) {
+            console.error("Camera error:", err);
+            notify("Could not access camera. Check permissions.", "err");
+        }
+    }, []);
+
+    const stopBarcodeScanner = useCallback(() => {
+        try {
+            const scanner = (window as any).__adminBarcodeScanner;
+            if (scanner) {
+                scanner.stop().catch(() => {});
+                delete (window as any).__adminBarcodeScanner;
+            }
+        } catch {}
+        setBarcodeScanning(false);
+        setShowBarcodeScanner(false);
+    }, []);
+
+    // Cleanup barcode scanner on unmount
+    useEffect(() => {
+        return () => {
+            try {
+                const scanner = (window as any).__adminBarcodeScanner;
+                if (scanner) { scanner.stop().catch(() => {}); delete (window as any).__adminBarcodeScanner; }
+            } catch {}
+        };
+    }, []);
+
     const bulkDiscount = async (cat: string) => {
         const discount = Number(discountMap[cat] ?? 0);
         const res = await fetch("/api/product-admin/categories", {
@@ -270,8 +321,8 @@ export default function ProductAdminDashboard() {
                             {/* Filters */}
                             <div className="flex flex-wrap items-center gap-3">
                                 <div className="relative"><Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="text" placeholder="Search name or barcode…" value={search} onChange={(e) => setSearch(e.target.value)} className="bg-white/[0.04] border border-white/[0.08] rounded-xl pl-8 pr-3 py-2 text-xs placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 w-52" /></div>
-                                <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
-                                    <option value="all">All Categories</option>{CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+                                <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="bg-[#0d1f12] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none" style={{ colorScheme: 'dark' }}>
+                                    <option value="all" className="bg-[#0d1f12] text-white">All Categories</option>{CATS.map((c) => <option key={c} value={c} className="bg-[#0d1f12] text-white">{c}</option>)}
                                 </select>
                                 <span className="text-xs text-slate-500">{filtered.length} products</span>
                             </div>
@@ -419,7 +470,6 @@ export default function ProductAdminDashboard() {
                                     ["stock", "Stock Quantity", "number", 1],
                                     ["brand", "Brand", "text", 1],
                                     ["unit", "Unit (kg/pcs)", "text", 1],
-                                    ["barcode", "Barcode", "text", 1],
                                     ["subcategory", "Subcategory", "text", 1],
                                     ["tags", "Tags (comma sep)", "text", 2],
                                 ] as const).map(([key, label, type, span]) => (
@@ -434,10 +484,32 @@ export default function ProductAdminDashboard() {
                                         />
                                     </div>
                                 ))}
+
+                                {/* Barcode field with scan button */}
+                                <div className="col-span-2">
+                                    <label className="block text-[10px] text-slate-400 mb-1">Barcode</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={form.barcode}
+                                            onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                                            placeholder="Enter barcode or scan…"
+                                            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500/40"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowBarcodeScanner(true)}
+                                            className="flex items-center gap-1.5 px-3 py-2 bg-violet-600/80 hover:bg-violet-500 rounded-xl text-xs font-semibold text-white transition-all whitespace-nowrap"
+                                        >
+                                            <ScanBarcode size={14} />Scan
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div className="col-span-2">
                                     <label className="block text-[10px] text-slate-400 mb-1">Category</label>
-                                    <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/40">
-                                        {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+                                    <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full bg-[#0d1f12] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/40" style={{ colorScheme: 'dark' }}>
+                                        {CATS.map((c) => <option key={c} value={c} className="bg-[#0d1f12] text-white">{c}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -534,6 +606,56 @@ export default function ProductAdminDashboard() {
                                     {stockSaving ? <><Loader2 size={14} className="animate-spin" />Saving…</> : <><CheckCircle size={14} />Save Stock</>}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Barcode Scanner Modal ── */}
+            {showBarcodeScanner && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                    <div className="bg-[#0d1f12] border border-white/[0.08] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                                    <ScanBarcode size={15} className="text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-sm font-semibold">Scan Barcode</h2>
+                                    <p className="text-[10px] text-slate-400">Point camera at product barcode</p>
+                                </div>
+                            </div>
+                            <button onClick={stopBarcodeScanner} className="text-slate-400 hover:text-white p-1">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="relative">
+                            <div
+                                id="admin-barcode-scanner"
+                                className={`w-full bg-black ${barcodeScanning ? 'min-h-[280px]' : 'h-0 overflow-hidden'}`}
+                            />
+                            {!barcodeScanning && (
+                                <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-4">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-600/20 border border-violet-500/30 flex items-center justify-center">
+                                        <Camera size={28} className="text-violet-400" />
+                                    </div>
+                                    <button
+                                        onClick={startBarcodeScanner}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white text-sm font-semibold hover:from-violet-500 hover:to-purple-500 transition-all shadow-lg shadow-violet-900/40"
+                                    >
+                                        <Camera size={16} />Start Camera
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        {form.barcode && (
+                            <div className="mx-5 my-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                                <CheckCircle size={13} className="text-emerald-400" />
+                                <span className="text-xs text-emerald-300 font-mono">{form.barcode}</span>
+                            </div>
+                        )}
+                        <div className="px-5 py-4 border-t border-white/[0.06] flex gap-3">
+                            <button onClick={stopBarcodeScanner} className="flex-1 py-2.5 rounded-xl border border-white/[0.08] text-slate-400 text-sm hover:bg-white/[0.05] transition-colors">Close</button>
                         </div>
                     </div>
                 </div>

@@ -67,7 +67,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return true;
     },
 
-    jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.name = user.name;
@@ -76,6 +76,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.store_id = (user as { store_id?: string | null }).store_id ?? null;
         token.isBlocked = (user as { isBlocked?: boolean }).isBlocked ?? false;
       }
+
+      // Re-read role from DB on every request to pick up role changes
+      // (e.g. after EditRoleMobile updates role to deliveryBoy)
+      if (token.id && (trigger === "update" || !user)) {
+        try {
+          await connectDb();
+          const dbUser = await User.findById(token.id).select("role store_id isBlocked").lean() as any;
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.store_id = dbUser.store_id?.toString() ?? null;
+            token.isBlocked = dbUser.isBlocked ?? false;
+          }
+        } catch {
+          // Silently ignore DB errors in JWT callback
+        }
+      }
+
       return token;
     },
 

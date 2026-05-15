@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Bike, CheckCircle, Clock, MapPin, Package, IndianRupee,
@@ -18,7 +18,13 @@ type Order = {
     totalAmount: number;
     paymentMethod: string;
     orderStatus: string;
+    deliveryOtp?: string;
     createdAt: string;
+};
+type PendingRequest = {
+    deliveryId: string;
+    assignedAt: string;
+    order: Order | null;
 };
 
 function Toast({ msg, type }: { msg: string; type: "success" | "error" }) {
@@ -35,6 +41,7 @@ function Toast({ msg, type }: { msg: string; type: "success" | "error" }) {
 
 export default function DeliveryBoy() {
     const [online, setOnline] = useState(false);
+    const [initialStatusLoaded, setInitialStatusLoaded] = useState(false);
     const [orders, setOrders] = useState<Order[]>([]);
     const [delivered, setDelivered] = useState<Order[]>([]);
     const [earnings, setEarnings] = useState(0);
@@ -42,13 +49,19 @@ export default function DeliveryBoy() {
     const [updating, setUpdating] = useState<string | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
     const [expanded, setExpanded] = useState<string | null>(null);
-
-    const showToast = (msg: string, type: "success" | "error") => {
+    const [otpInputs, setOtpInputs] = useState<Record<string, string>>({});
+    const [trackingEnabled, setTrackingEnabled] = useState(false);
+    const [statusUpdating, setStatusUpdating] = useState(false);
+    const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+    const [acceptingId, setAcceptingId] = useState<string | null>(null);
+    const watchIdRef = useRef<number | null>(null);
+    const prevPendingCountRef = useRef(0);
+    const showToast = React.useCallback((msg: string, type: "success" | "error") => {
         setToast({ msg, type }); setTimeout(() => setToast(null), 3000);
-    };
+    }, []);
 
-    const loadOrders = async () => {
-        setLoading(true);
+    const loadOrders = React.useCallback(async (showSpinner = true) => {
+        if (showSpinner) setLoading(true);
         try {
             const res = await fetch("/api/delivery/orders");
             if (!res.ok) throw new Error();
@@ -56,27 +69,166 @@ export default function DeliveryBoy() {
             setOrders(data);
         } catch {
             showToast("Failed to load orders", "error");
-        } finally { setLoading(false); }
-    };
+        } finally {
+            if (showSpinner) setLoading(false);
+        }
+    }, [showToast]);
 
-    useEffect(() => { loadOrders(); }, []);
+    // Fetch real status from the delivery settings endpoint on mount
+    useEffect(() => {
+        async function fetchStatus() {
+            try {
+                const res = await fetch("/api/delivery/settings");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.profile) {
+                        const isOnline = data.profile.status === "available" || data.profile.status === "busy";
+                        setOnline(isOnline);
+                    }
+                }
+            } catch {
+                // Ignore — just won't auto-set online
+            } finally {
+                setInitialStatusLoaded(true);
+            }
+        }
+        fetchStatus();
+    }, []);
 
-    const markDelivered = async (order: Order) => {
-        if (!online) { showToast("Go online first!", "error"); return; }
-        setUpdating(order._id);
+    const loadPending = React.useCallback(async () => {
         try {
-            const res = await fetch("/api/delivery/orders", {
+            const res = await fetch("/api/delivery/pending");
+            if (!res.ok) return;
+            const data: PendingRequest[] = await res.json();
+            if (data.length > prevPendingCountRef.current && prevPendingCountRef.current >= 0) {
+                try { new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Nk46KgHRqYF9oc4OQlpKMg3ZtZGFndIGOlZKNhHdtZGNnd4SOlZKLgnVqYmNpd4aRl5SMgnVqYGJpdoeSm5eQiH12bmZlbHeCjZaWkYt/dW1mZm14hI+Wl5KMgXdva2htdoOOlpeRi4B1bmtpbneFkJeXkouAdm5raW52hZCXl5KLgHZua2ludoWQl5eSi4B2b2tpb3aFkJeXkouAdm5raW52hZCXl5KLgHZua2ludoWQl5eSi4B2").play().catch(() => {}); } catch {}
+            }
+            prevPendingCountRef.current = data.length;
+            setPendingRequests(data);
+        } catch {}
+    }, []);
+
+    useEffect(() => {
+        loadOrders();
+        loadPending();
+    }, [loadOrders, loadPending]);
+
+    useEffect(() => {
+        if (!online) return;
+        const interval = window.setInterval(() => { loadOrders(false); loadPending(); }, 8000);
+        loadOrders(); loadPending();
+        return () => window.clearInterval(interval);
+    }, [online, loadOrders, loadPending]);
+
+    const toggleOnline = async () => {
+        setStatusUpdating(true);
+        try {
+            const nextStatus = online ? "offline" : "available";
+            const res = await fetch("/api/delivery/status", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId: order._id, orderStatus: "delivered" }),
+                body: JSON.stringify({ status: nextStatus }),
             });
-            if (!res.ok) throw new Error();
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Unable to update status");
+            setOnline(!online);
+            if (online && watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+                setTrackingEnabled(false);
+            }
+            showToast(data.message || `You are now ${nextStatus}` , "success");
+        } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : "Status update failed", "error");
+        } finally {
+            setStatusUpdating(false);
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+            }
+        };
+    }, []);
+
+    // Mark Delivered is handled exclusively via OTP verification
+
+    const verifyOtp = async (order: Order) => {
+        if (!online) { showToast("Go online first!", "error"); return; }
+        const otp = otpInputs[order._id]?.trim();
+        if (!otp) { showToast("Enter the OTP to verify", "error"); return; }
+        setUpdating(order._id);
+        try {
+            const res = await fetch("/api/delivery/otp-verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId: order._id, otp }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.message || "OTP verification failed");
             setOrders((p) => p.filter((o) => o._id !== order._id));
             setDelivered((p) => [{ ...order, orderStatus: "delivered" }, ...p]);
             setEarnings((e) => e + order.totalAmount);
-            showToast(`₹${order.totalAmount} earned! Delivered to ${order.address.fullName} 🎉`, "success");
-        } catch { showToast("Update failed", "error"); }
-        finally { setUpdating(null); }
+            setOtpInputs((prev) => {
+                const next = { ...prev };
+                delete next[order._id];
+                return next;
+            });
+            showToast(data.message || "Delivery confirmed!", "success");
+        } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : "Update failed", "error");
+        } finally { setUpdating(null); }
+    };
+
+    const updateLocation = async (latitude: number, longitude: number) => {
+        try {
+            const res = await fetch("/api/delivery/location", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ latitude, longitude }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data?.message || "Location update failed");
+            }
+        } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : "Location update failed", "error");
+        }
+    };
+
+    const toggleTracking = () => {
+        if (!online) { showToast("Go online before enabling live GPS.", "error"); return; }
+        if (!navigator.geolocation) {
+            showToast("Geolocation is not supported in your browser.", "error");
+            return;
+        }
+
+        if (trackingEnabled) {
+            if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+            setTrackingEnabled(false);
+            showToast("Live GPS tracking stopped", "success");
+            return;
+        }
+
+        const id = navigator.geolocation.watchPosition(
+            (position) => {
+                updateLocation(position.coords.latitude, position.coords.longitude);
+            },
+            (error) => {
+                showToast(error.message || "Unable to get location", "error");
+                setTrackingEnabled(false);
+            },
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+        );
+
+        watchIdRef.current = id;
+        setTrackingEnabled(true);
+        showToast("Live GPS tracking enabled", "success");
     };
 
     const markOutForDelivery = async (orderId: string) => {
@@ -95,40 +247,99 @@ export default function DeliveryBoy() {
         finally { setUpdating(null); }
     };
 
+    const handleAccept = async (deliveryId: string) => {
+        setAcceptingId(deliveryId);
+        try {
+            const res = await fetch("/api/delivery/accept", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ deliveryId, action: "accept" }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Failed to accept");
+            showToast(data.message || "Order accepted!", "success");
+            setPendingRequests((p) => p.filter((r) => r.deliveryId !== deliveryId));
+            loadOrders();
+        } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : "Accept failed", "error");
+        } finally { setAcceptingId(null); }
+    };
+
+    const handleReject = async (deliveryId: string) => {
+        setAcceptingId(deliveryId);
+        try {
+            const res = await fetch("/api/delivery/accept", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ deliveryId, action: "reject" }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Failed to reject");
+            showToast("Order rejected — reassigning to another rider", "success");
+            setPendingRequests((p) => p.filter((r) => r.deliveryId !== deliveryId));
+        } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : "Reject failed", "error");
+        } finally { setAcceptingId(null); }
+    };
+
     const totalDelivered = delivered.length;
     const pendingCount = orders.length;
+    const incomingCount = pendingRequests.length;
+
+    if (!initialStatusLoaded) {
+        return (
+            <div className="flex items-center justify-center py-20 gap-3 text-gray-400">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                <span className="text-sm font-medium">Loading dashboard...</span>
+            </div>
+        );
+    }
 
     return (
         <>
             <div className="px-4 py-6 max-w-5xl mx-auto space-y-6">
                 {/* Header */}
                 <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-between">
+                    className="flex items-center justify-between flex-wrap gap-3">
                     <div>
                         <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
                             🛵 Delivery Dashboard
                         </h2>
                         <p className="text-gray-400 text-sm mt-0.5">Manage your deliveries in real-time</p>
                     </div>
-                    {/* Online/Offline toggle */}
-                    <button
-                        onClick={() => { setOnline((v) => !v); showToast(online ? "You are now Offline" : "You are now Online! 🟢", online ? "error" : "success"); }}
-                        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border-2 font-bold text-sm transition-all duration-300 cursor-pointer ${online
-                            ? "bg-emerald-50 border-emerald-400 text-emerald-700 shadow-lg shadow-emerald-100"
-                            : "bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300"
-                            }`}
-                    >
-                        {online
-                            ? <><ToggleRight className="w-5 h-5 text-emerald-500" /><span>Online</span><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /></>
-                            : <><ToggleLeft className="w-5 h-5 text-gray-400" />Offline</>}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Online/Offline toggle */}
+                        <button
+                            onClick={toggleOnline}
+                            disabled={statusUpdating}
+                            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border-2 font-bold text-sm transition-all duration-300 cursor-pointer ${online
+                                ? "bg-emerald-50 border-emerald-400 text-emerald-700 shadow-lg shadow-emerald-100"
+                                : "bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300"
+                                } ${statusUpdating ? "opacity-70 cursor-wait" : ""}`}
+                        >
+                            {online
+                                ? <><ToggleRight className="w-5 h-5 text-emerald-500" /><span>Online</span><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /></>
+                                : <><ToggleLeft className="w-5 h-5 text-gray-400" />Offline</>}
+                        </button>
+                        <button
+                            onClick={toggleTracking}
+                            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border-2 font-bold text-sm transition-all duration-300 ${trackingEnabled
+                                ? "bg-blue-50 border-blue-400 text-blue-700 shadow-lg shadow-blue-100"
+                                : "bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300"
+                                }`}
+                        >
+                            {trackingEnabled
+                                ? <><MapPin className="w-5 h-5 text-blue-500" /><span>Tracking</span></>
+                                : <><MapPin className="w-5 h-5 text-gray-400" /><span>Live GPS</span></>}
+                        </button>
+                    </div>
                 </motion.div>
 
                 {/* Earnings hero */}
                 <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
                     className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 rounded-3xl p-6 text-white shadow-xl shadow-emerald-200">
                     <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-                    <p className="text-emerald-100 text-sm font-medium mb-1">Today's Earnings</p>
+                    <p className="text-emerald-100 text-sm font-medium mb-1">Today&apos;s Earnings</p>
                     <p className="text-4xl font-black mb-1">₹{earnings.toLocaleString("en-IN")}</p>
                     <div className="flex items-center gap-1 text-emerald-200 text-sm">
                         <Star className="w-4 h-4 fill-yellow-300 text-yellow-300" />
@@ -153,6 +364,67 @@ export default function DeliveryBoy() {
                     ))}
                 </div>
 
+                {/* ══ INCOMING ORDER REQUESTS ════════════════════════════════ */}
+                {online && pendingRequests.length > 0 && (
+                    <div className="space-y-3">
+                        <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                            <Package className="w-4 h-4 text-red-500 animate-pulse" />
+                            Incoming Requests
+                            <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{incomingCount} new</span>
+                        </h3>
+                        <AnimatePresence>
+                            {pendingRequests.map((req, i) => {
+                                const order = req.order;
+                                if (!order) return null;
+                                const isProcessing = acceptingId === req.deliveryId;
+                                return (
+                                    <motion.div key={req.deliveryId} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, x: 80 }} transition={{ delay: i * 0.05 }}
+                                        className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border-2 border-orange-300 shadow-lg shadow-orange-100 overflow-hidden">
+                                        <div className="p-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                                                    <span className="text-lg">🔔</span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-orange-800">New Delivery Request</p>
+                                                    <p className="text-[10px] text-orange-600">Accept within time to earn this delivery</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3 mb-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-gray-800">#{order._id.slice(-7).toUpperCase()}</p>
+                                                    <p className="text-xs text-gray-500 flex items-center gap-1"><MapPin className="w-3 h-3" />{order.address?.fullName} · {order.address?.city}</p>
+                                                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{order.address?.phone}</p>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-lg font-extrabold text-gray-900">₹{order.totalAmount}</p>
+                                                    <p className="text-[10px] text-gray-400">{order.paymentMethod}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 mb-3">
+                                                {order.items?.map((it, j) => (
+                                                    <span key={j} className="text-[10px] bg-white text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">{it.name} ×{it.quantity}</span>
+                                                ))}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => handleAccept(req.deliveryId)} disabled={isProcessing}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50 shadow-md">
+                                                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                                                    Accept Order
+                                                </button>
+                                                <button onClick={() => handleReject(req.deliveryId)} disabled={isProcessing}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white border-2 border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50">
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
+                    </div>
+                )}
+
                 {/* Pending Orders */}
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -161,7 +433,7 @@ export default function DeliveryBoy() {
                             Pending Deliveries
                             {pendingCount > 0 && <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{pendingCount}</span>}
                         </h3>
-                        <button onClick={loadOrders} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors">
+                        <button onClick={() => loadOrders()} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors">
                             <RotateCcw className="w-4 h-4" />
                         </button>
                     </div>
@@ -175,7 +447,7 @@ export default function DeliveryBoy() {
                             <ToggleLeft className="w-10 h-10 text-gray-300" />
                             <p className="font-semibold text-gray-500">You are Offline</p>
                             <p className="text-sm max-w-xs">Go online to start receiving and managing delivery orders.</p>
-                            <button onClick={() => setOnline(true)}
+                            <button onClick={toggleOnline}
                                 className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">
                                 Go Online Now 🟢
                             </button>
@@ -239,16 +511,52 @@ export default function DeliveryBoy() {
                                                         Pick Up Order
                                                     </button>
                                                 )}
-                                                <button onClick={() => markDelivered(order)} disabled={isUpdating}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50 shadow-sm">
-                                                    {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                                                    Mark Delivered
-                                                </button>
                                                 <button onClick={() => setExpanded(isExpanded ? null : order._id)}
                                                     className="p-2 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-700 cursor-pointer transition-colors">
                                                     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                 </button>
                                             </div>
+
+                                            {/* OTP verification — MANDATORY for all deliveries */}
+                                            {isOutForDelivery && (
+                                                <div className="mt-4 rounded-2xl border-2 border-amber-200 bg-amber-50 p-4">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <div className="w-7 h-7 bg-amber-100 rounded-full flex items-center justify-center">
+                                                            <span className="text-amber-600 text-sm">🔐</span>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-amber-800 font-bold">OTP Verification Required</p>
+                                                            <p className="text-[10px] text-amber-600">Ask the customer for the delivery code</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col sm:flex-row gap-2">
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            maxLength={6}
+                                                            placeholder="Enter 6-digit OTP"
+                                                            value={otpInputs[order._id] || ""}
+                                                            onChange={(e) => setOtpInputs((prev) => ({ ...prev, [order._id]: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                                                            className="flex-1 rounded-xl border-2 border-amber-300 bg-white px-4 py-3 text-base font-bold text-center text-slate-900 tracking-[0.3em] focus:outline-none focus:border-amber-500 placeholder:tracking-normal placeholder:font-normal placeholder:text-sm"
+                                                        />
+                                                        <button
+                                                            onClick={() => verifyOtp(order)}
+                                                            disabled={updating === order._id || (otpInputs[order._id] || "").length < 6}
+                                                            className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                                                        >
+                                                            {updating === order._id ? "Verifying…" : "✓ Verify & Complete"}
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-[10px] text-amber-600 mt-2 text-center">Customer received this OTP in their order confirmation</p>
+                                                </div>
+                                            )}
+
+                                            {/* Info: OTP will be needed after pickup */}
+                                            {order.orderStatus === "confirmed" && (
+                                                <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-3">
+                                                    <p className="text-xs text-blue-700 font-semibold">📋 OTP verification will be required at delivery — pick up the order first.</p>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Expanded address */}

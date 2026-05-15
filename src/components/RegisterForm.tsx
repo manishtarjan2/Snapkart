@@ -164,11 +164,16 @@ function RegisterForm({ priviousStep }: propType) {
         onClick={() => router.push("/login")}>
         Already have an account?<LogIn className="w-4 h-4" />
         <span className="text-green-600">Sign in</span>
-
       </p>
 
-
+      <p className="cursor-pointer text-gray-600 mt-2 text-sm flex items-center gap-1"
+        onClick={() => router.push("/admin-login")}> 
+        Are you staff or an admin?<Key className="w-4 h-4" />
+        <span className="text-green-600">Admin login</span>
+      </p>
     </div>
   )
 }
+
 export default RegisterForm;
+

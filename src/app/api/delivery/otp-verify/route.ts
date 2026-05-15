@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import connectDb from "@/lib/db";
+import Delivery from "@/models/delivery.model";
 import Order from "@/models/order.model";
 import DeliveryBoy from "@/models/deliveryboy.model";
 import { NextRequest, NextResponse } from "next/server";
@@ -46,12 +47,25 @@ export async function POST(req: NextRequest) {
         order.paymentStatus = "paid";
         await order.save();
 
-        // ── Free the delivery boy ─────────────────────────────────────────────
+        // ── Free the delivery boy and update delivery tracking ────────────────
         if (order.deliveryBoyId) {
-            await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, {
-                $set: { status: "available" },
-                $inc: { totalDeliveries: 1 },
-            });
+            await Promise.all([
+                DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, {
+                    $set: { status: "available" },
+                    $inc: { totalDeliveries: 1 },
+                }),
+                Delivery.findOneAndUpdate(
+                    { order_id: order._id },
+                    { status: "delivered", otpVerified: true, deliveredAt: new Date() },
+                    { new: true }
+                ),
+            ]);
+        } else {
+            await Delivery.findOneAndUpdate(
+                { order_id: order._id },
+                { status: "delivered", otpVerified: true, deliveredAt: new Date() },
+                { new: true }
+            );
         }
 
         return NextResponse.json(

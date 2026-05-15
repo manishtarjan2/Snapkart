@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
         // Fetch active deliveries
         const deliveryFilter: Record<string, unknown> = {
-            status: { $in: ["assigned", "pickedUp", "inTransit", "outForDelivery"] },
+            status: { $in: ["pending", "assigned", "pickedUp", "inTransit"] },
         };
         if (boyId) deliveryFilter.delivery_boy_id = boyId;
         const deliveries = await Delivery.find(deliveryFilter)

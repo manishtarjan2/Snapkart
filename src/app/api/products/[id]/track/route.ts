@@ -4,11 +4,11 @@ import { NextResponse } from "next/server";
 
 export async function POST(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         await connectDb();
-        const { id } = params;
+        const { id } = await params;
         const body = await req.json().catch(() => ({}));
         const action = body.action || "view"; // "view" | "sale"
 

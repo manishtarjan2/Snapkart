@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 // POST /api/user/refund-request
 //   Customer requests a refund for a delivered order.
 //   Body: { orderId, reason }
+//
+//   The refundable amount = productTotal only.
+//   Delivery charges and offer discounts are NON-REFUNDABLE.
 // ────────────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
     await connectDb();
@@ -43,12 +46,26 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // Calculate the estimated refund amount (product cost only)
+        const estimatedRefund = order.productTotal
+            ? order.productTotal
+            : order.items.reduce(
+                (sum: number, item: { price: number; quantity: number }) =>
+                    sum + item.price * item.quantity,
+                0
+            );
+
         order.refundStatus = "requested";
         order.refundReason = reason || "Customer requested";
+        order.refundAmount = parseFloat(estimatedRefund.toFixed(2));
         await order.save();
 
         return NextResponse.json(
-            { message: "Refund request submitted. Admin will review shortly." },
+            {
+                message: "Refund request submitted. Admin will review shortly.",
+                estimatedRefund: parseFloat(estimatedRefund.toFixed(2)),
+                note: `Refundable amount: ₹${estimatedRefund.toFixed(2)} (product cost only). Delivery charges ₹${order.deliveryFee ?? 0} and promotional discounts are non-refundable.`,
+            },
             { status: 200 }
         );
     } catch (err) {

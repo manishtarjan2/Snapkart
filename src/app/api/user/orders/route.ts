@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import connectDb from "@/lib/db";
 import mongoose from "mongoose";
+import { assignDeliveryBoyToOrder } from "@/lib/delivery";
 import Order from "@/models/order.model";
 import StoreInventory from "@/models/store-inventory.model";
 import Product from "@/models/product.model";
@@ -40,19 +41,18 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    // Auto-select the first active store if none specified (optional — order
-    // can proceed even without a store if none have been created yet)
+    // Auto-select the first active store if none specified
     if (!store_id) {
         const defaultStore = await Store.findOne({ isActive: true }).select("_id").lean();
         if (defaultStore) {
             store_id = (defaultStore as { _id: mongoose.Types.ObjectId })._id.toString();
         }
-        // store_id stays undefined — order proceeds without a store link
     }
 
     // ── Enrich items with server-side pricing from Product ──────────────────
     const enrichedItems = [];
-    let serverTotal = 0;
+    let productTotal = 0;      // sum of discounted-price × qty
+    let totalDiscount = 0;     // sum of monetary savings from product discounts
 
     for (const item of items) {
         const product = await Product.findById(item.groceryId);
@@ -62,90 +62,106 @@ export async function POST(req: NextRequest) {
                 { status: 404 }
             );
         }
-        const priceToUse = product.price * (1 - (product.discount ?? 0) / 100);
+        const discountPct = product.discount ?? 0;
+        const discountedPrice = product.price * (1 - discountPct / 100);
+        const itemSavings = (product.price - discountedPrice) * item.quantity;
+
         enrichedItems.push({
             groceryId: item.groceryId,
             name: product.name,
-            price: parseFloat(priceToUse.toFixed(2)),
+            price: parseFloat(discountedPrice.toFixed(2)),
             quantity: item.quantity,
             image: product.image,
         });
-        serverTotal += priceToUse * item.quantity;
+
+        productTotal += discountedPrice * item.quantity;
+        totalDiscount += itemSavings;
     }
 
-    serverTotal = parseFloat(serverTotal.toFixed(2));
+    productTotal = parseFloat(productTotal.toFixed(2));
+    totalDiscount = parseFloat(totalDiscount.toFixed(2));
 
-    // ── Atomic transaction: decrement StoreInventory + create Order ───────────
-    const mongoSession = await mongoose.startSession();
-    mongoSession.startTransaction();
+    // ── Compute delivery fee (free delivery above ₹299) ────────────────────
+    const deliveryFee = productTotal >= 299 ? 0 : 30;
+    const grandTotal = parseFloat((productTotal + deliveryFee).toFixed(2));
 
+    // ── Atomic operations: decrement stock + create Order ───────────────────
     try {
         for (const item of enrichedItems) {
-            // 1. Try decrementing StoreInventory first (if store+inventory exists)
             let deducted = false;
             if (store_id) {
                 const invResult = await StoreInventory.findOneAndUpdate(
                     { store_id, product_id: item.groceryId, stock: { $gte: item.quantity } },
-                    { $inc: { stock: -item.quantity } },
-                    { session: mongoSession }
+                    { $inc: { stock: -item.quantity } }
                 );
                 if (invResult) deducted = true;
             }
 
-            // 2. Fallback: deduct directly from Product.stock
             if (!deducted) {
                 const productResult = await Product.findOneAndUpdate(
                     { _id: item.groceryId, stock: { $gte: item.quantity } },
-                    { $inc: { stock: -item.quantity } },
-                    { session: mongoSession, new: true }
+                    { $inc: { stock: -item.quantity, sales: item.quantity } },
+                    { new: true }
                 );
                 if (!productResult) {
                     throw new Error(`Insufficient stock for "${item.name}"`);
                 }
-                // Mark product out-of-stock if fully depleted
                 if (productResult.stock <= 0) {
                     await Product.findByIdAndUpdate(
                         item.groceryId,
-                        { $set: { inStock: false } },
-                        { session: mongoSession }
+                        { $set: { inStock: false } }
                     );
                 }
+            } else {
+                // Still bump sales on the product catalogue
+                await Product.findByIdAndUpdate(
+                    item.groceryId,
+                    { $inc: { sales: item.quantity } }
+                );
             }
         }
 
-        const [order] = await Order.create(
-            [
-                {
-                    userId: session.user.id,
-                    items: enrichedItems,
-                    address,
-                    totalAmount: serverTotal,
-                    paymentMethod: paymentMethod || "UPI",
-                    paymentStatus: "paid",
-                    orderStatus: "placed",
-                    type: "online",
-                    ...(store_id ? { store_id } : {}),
-                },
-            ],
-            { session: mongoSession }
-        );
+        const order = await Order.create({
+            userId: session.user.id,
+            items: enrichedItems,
+            address,
+            productTotal,
+            deliveryFee,
+            discountAmount: totalDiscount,
+            totalAmount: grandTotal,
+            paymentMethod: paymentMethod || "UPI",
+            paymentStatus: paymentMethod === "COD" ? "pending" : "paid",
+            orderStatus: "placed",
+            type: "online",
+            ...(store_id ? { store_id } : {}),
+        });
 
-        await mongoSession.commitTransaction();
+        const assignment = await assignDeliveryBoyToOrder(order);
 
         return NextResponse.json(
-            { message: "Order placed!", orderId: order._id!.toString(), totalAmount: serverTotal },
+            {
+                message: "Order placed!",
+                orderId: order._id!.toString(),
+                totalAmount: grandTotal,
+                productTotal,
+                deliveryFee,
+                discountAmount: totalDiscount,
+                deliveryAssigned: assignment.assigned,
+                deliveryInfo: assignment.assigned ? {
+                    deliveryId: assignment.deliveryId,
+                    deliveryBoyId: assignment.deliveryBoyId,
+                    deliveryBoyName: assignment.deliveryBoyName,
+                } : undefined,
+            },
             { status: 201 }
         );
     } catch (err: unknown) {
-        await mongoSession.abortTransaction();
         const message = err instanceof Error ? err.message : "Server error";
         console.error("Place order error:", err);
         return NextResponse.json(
             { message },
             { status: message.includes("Insufficient") ? 409 : 500 }
         );
-    } finally {
-        await mongoSession.endSession();
     }
 }
 

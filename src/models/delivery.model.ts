@@ -10,7 +10,7 @@ export interface IDelivery {
     delivery_boy_id: mongoose.Types.ObjectId | string;
     /** Store this delivery was dispatched from */
     store_id?: mongoose.Types.ObjectId | string;
-    status: "assigned" | "pickedUp" | "inTransit" | "delivered" | "failed" | "cancelled";
+    status: "pending" | "assigned" | "pickedUp" | "inTransit" | "delivered" | "failed" | "cancelled";
     /** 6-digit OTP for doorstep confirmation */
     otp: string;
     otpVerified: boolean;
@@ -41,8 +41,8 @@ const deliverySchema = new mongoose.Schema<IDelivery>(
         store_id: { type: Schema.Types.ObjectId, ref: "Store" },
         status: {
             type: String,
-            enum: ["assigned", "pickedUp", "inTransit", "delivered", "failed", "cancelled"],
-            default: "assigned",
+            enum: ["pending", "assigned", "pickedUp", "inTransit", "delivered", "failed", "cancelled"],
+            default: "pending",
         },
         otp: { type: String, required: true },
         otpVerified: { type: Boolean, default: false },

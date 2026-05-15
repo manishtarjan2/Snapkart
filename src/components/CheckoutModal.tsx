@@ -71,6 +71,7 @@ export default function CheckoutModal({ grandTotal, deliveryFee, onClose }: Prop
             <PaymentModal
                 address={address}
                 grandTotal={grandTotal}
+                deliveryFee={deliveryFee}
                 onClose={onClose}
             />
         );
@@ -85,34 +86,49 @@ export default function CheckoutModal({ grandTotal, deliveryFee, onClose }: Prop
                 className="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-hidden flex flex-col"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 bg-emerald-50 rounded-xl">
-                            <MapPin className="w-5 h-5 text-emerald-600" />
+                <div className="flex flex-col gap-4 px-6 py-5 border-b border-gray-100 shrink-0 bg-white/95">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 rounded-2xl bg-white border border-gray-200 px-3 py-2 shadow-sm">
+                                <div className="p-2 bg-emerald-50 rounded-xl">
+                                    <MapPin className="w-5 h-5 text-emerald-600" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-xs uppercase tracking-[0.3em] text-emerald-700 font-semibold">Snapkart</p>
+                                </div>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-extrabold text-gray-900">Checkout</h2>
+                                <p className="text-sm text-gray-500">Deliver to your chosen address and continue to payment.</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="font-extrabold text-gray-900">Delivery Address</h2>
-                            <p className="text-xs text-gray-400">Step 1 of 2 — Enter your details</p>
-                        </div>
+                        <button onClick={onClose} className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+                            <X className="w-4 h-4" />
+                            Close
+                        </button>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 cursor-pointer transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
 
-                {/* Order mini-summary */}
-                <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <ShoppingBag className="w-4 h-4 text-emerald-500" />
-                        <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
-                        <span className="text-gray-300">|</span>
-                        <span className="font-bold text-gray-800">₹{grandTotal}</span>
-                    </div>
-                    {deliveryFee === 0 && (
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                            FREE delivery
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1">
+                            <ShoppingBag className="w-4 h-4 text-emerald-500" />
+                            {items.length} item{items.length !== 1 ? "s" : ""}
                         </span>
-                    )}
+                        <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-semibold text-gray-800">
+                            <span>₹{grandTotal}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                            Step 1 of 2
+                        </span>
+                        {deliveryFee === 0 ? (
+                            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-emerald-700 font-semibold">
+                                FREE delivery
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-2 rounded-full bg-slate-50 border border-slate-200 px-3 py-1 text-slate-600">
+                                Delivery fee ₹{deliveryFee}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* Form */}

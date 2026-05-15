@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
     EyeIcon, EyeOff, Lock, Mail, Loader2,
-    ShieldCheck, Store, Package, Truck, ArrowLeft, AlertCircle
+    ShieldCheck, Store, Package, Truck, Users, ArrowLeft, AlertCircle
 } from 'lucide-react'
 import React, { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,8 @@ const ROLE_INFO = [
     { role: "storeAdmin", label: "Store Admin", icon: Store, gradient: "from-blue-600 to-cyan-700" },
     { role: "productAdmin", label: "Product Admin", icon: Package, gradient: "from-emerald-600 to-teal-700" },
     { role: "deliveryAdmin", label: "Delivery Admin", icon: Truck, gradient: "from-orange-600 to-amber-700" },
+    { role: "deliveryBoy", label: "Delivery Boy", icon: ShieldCheck, gradient: "from-cyan-600 to-sky-700" },
+    { role: "posAdmin", label: "POS Admin", icon: Users, gradient: "from-pink-600 to-rose-700" },
 ];
 
 export default function AdminLogin() {
@@ -43,15 +45,17 @@ export default function AdminLogin() {
                 // Fetch session to get role, then redirect to that role's dashboard
                 const session = await getSession();
                 const role = session?.user?.role ?? "";
+                const NORMALIZED_ROLE = role === "diliveryBoy" ? "deliveryBoy" : role;
                 const ROLE_REDIRECT: Record<string, string> = {
                     superAdmin: "/super-admin",
                     storeAdmin: "/store-admin",
                     productAdmin: "/product-admin",
                     deliveryAdmin: "/delivery-admin",
                     posAdmin: "/pos-admin",
+                    deliveryBoy: "/",
                     admin: "/",
                 };
-                router.push(ROLE_REDIRECT[role] ?? "/admin-portal");
+                router.push(ROLE_REDIRECT[NORMALIZED_ROLE] ?? "/");
             }
         } catch {
             setError("Something went wrong. Please try again.");

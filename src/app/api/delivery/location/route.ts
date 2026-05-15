@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import connectDb from "@/lib/db";
+import Delivery from "@/models/delivery.model";
 import DeliveryBoy from "@/models/deliveryboy.model";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -46,6 +47,28 @@ export async function PATCH(req: NextRequest) {
                 { status: 404 }
             );
         }
+
+        await Delivery.findOneAndUpdate(
+            {
+                delivery_boy_id: profile._id,
+                status: { $in: ["assigned", "pickedUp", "inTransit"] },
+            },
+            {
+                $set: {
+                    live_location: {
+                        type: "Point",
+                        coordinates: [longitude, latitude],
+                    },
+                },
+                $push: {
+                    locationHistory: {
+                        coordinates: [longitude, latitude],
+                        recordedAt: new Date(),
+                    },
+                },
+            },
+            { new: true }
+        );
 
         return NextResponse.json(
             { message: "Location updated", coordinates: [longitude, latitude] },

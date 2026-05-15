@@ -113,10 +113,16 @@ export default function AdminRegisterPage() {
                         <p className="text-[10px] text-slate-500">Super Admin Panel · Snapkart</p>
                     </div>
                 </div>
-                <button onClick={() => router.push("/super-admin")}
-                    className="text-xs text-slate-400 hover:text-white border border-white/[0.08] px-4 py-2 rounded-xl hover:bg-white/[0.05] transition-all">
-                    ← Back to Dashboard
-                </button>
+                <div className="flex flex-wrap gap-2">
+                    <button onClick={() => router.push("/super-admin")}
+                        className="text-xs text-slate-400 hover:text-white border border-white/[0.08] px-4 py-2 rounded-xl hover:bg-white/[0.05] transition-all">
+                        ← Back to Dashboard
+                    </button>
+                    <button onClick={() => router.push("/admin-login")}
+                        className="text-xs text-slate-400 hover:text-white border border-white/[0.08] px-4 py-2 rounded-xl hover:bg-white/[0.05] transition-all">
+                        Admin Sign In
+                    </button>
+                </div>
             </header>
 
             {/* Notification */}
@@ -237,6 +243,14 @@ export default function AdminRegisterPage() {
                         </form>
                     </div>
                 </motion.div>
+                <div className="text-sm text-slate-400 text-center mt-4">
+                    <p>
+                        Need to switch accounts? <button type="button" onClick={() => router.push("/admin-login")} className="text-violet-300 hover:text-white">Admin Sign In</button>
+                    </p>
+                    <p className="mt-2">
+                        Or go to <button type="button" onClick={() => router.push("/login")} className="text-violet-300 hover:text-white">User Login</button>
+                    </p>
+                </div>
 
                 {/* ── Existing Staff List ────────────────────────────────────────── */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>

@@ -6,7 +6,8 @@ import Link from "next/link";
 import {
     Truck, Users, MapPin, Activity, LogOut, RefreshCw,
     CheckCircle, XCircle, ChevronRight, PlusCircle, Search,
-    AlertTriangle, Navigation, ToggleLeft, ToggleRight, Loader2, ShieldCheck
+    AlertTriangle, Navigation, ToggleLeft, ToggleRight, Loader2, ShieldCheck,
+    Package
 } from "lucide-react";
 
 interface DeliveryBoyDoc {
@@ -29,6 +30,15 @@ interface DeliveryDoc {
     fraudFlag: boolean;
     createdAt: string;
     liveLocation?: { coordinates: [number, number] };
+}
+
+interface UnassignedOrder {
+    _id: string;
+    totalAmount: number;
+    address?: { fullName: string; city: string; phone: string };
+    items: { name: string; quantity: number }[];
+    createdAt: string;
+    userId?: { name: string; email: string; mobile: string };
 }
 
 const NAV = [
@@ -56,6 +66,7 @@ export default function DeliveryAdminDashboard() {
     const [active, setActive] = useState("boys");
     const [boys, setBoys] = useState<DeliveryBoyDoc[]>([]);
     const [deliveries, setDeliveries] = useState<DeliveryDoc[]>([]);
+    const [unassignedOrders, setUnassignedOrders] = useState<UnassignedOrder[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [notification, setNotification] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
@@ -68,6 +79,7 @@ export default function DeliveryAdminDashboard() {
     // Assign form
     const [assignOrderId, setAssignOrderId] = useState("");
     const [assigning, setAssigning] = useState(false);
+    const [assigningOrderId, setAssigningOrderId] = useState<string | null>(null);
 
     const notify = (msg: string, type: "ok" | "err" = "ok") => {
         setNotification({ msg, type }); setTimeout(() => setNotification(null), 3500);
@@ -80,11 +92,23 @@ export default function DeliveryAdminDashboard() {
         setDeliveries(Array.isArray(data.deliveries) ? data.deliveries : []);
     }, []);
 
+    const loadUnassigned = useCallback(async () => {
+        try {
+            const res = await fetch("/api/delivery-admin/assign");
+            if (res.ok) {
+                const data = await res.json();
+                setUnassignedOrders(Array.isArray(data) ? data : []);
+            }
+        } catch (e) {
+            console.error("Failed to load unassigned orders", e);
+        }
+    }, []);
+
     const refresh = useCallback(async () => {
         setLoading(true);
-        try { await loadBoys(); }
+        try { await Promise.all([loadBoys(), loadUnassigned()]); }
         finally { setLoading(false); }
-    }, [loadBoys]);
+    }, [loadBoys, loadUnassigned]);
 
     useEffect(() => { refresh(); }, [refresh]);
 
@@ -119,23 +143,27 @@ export default function DeliveryAdminDashboard() {
         setBoys((prev) => prev.map((b) => b._id === id ? { ...b, status: newStatus as DeliveryBoyDoc["status"] } : b));
     };
 
-    // ── Assign order ─────────────────────────────────────────────────────────
-    const handleAssign = async () => {
-        if (!assignOrderId.trim()) { notify("Enter an order ID", "err"); return; }
-        setAssigning(true);
+    // ── Assign order (by ID input) ─────────────────────────────────────────────
+    const handleAssign = async (targetOrderId?: string) => {
+        const oid = targetOrderId || assignOrderId.trim();
+        if (!oid) { notify("Enter an order ID", "err"); return; }
+        if (targetOrderId) setAssigningOrderId(targetOrderId);
+        else setAssigning(true);
         try {
             const res = await fetch("/api/delivery-admin/assign", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId: assignOrderId }),
+                body: JSON.stringify({ orderId: oid }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
-            notify(`Order assigned! OTP: ${data.otp ?? "—"}`);
+            notify(`Order assigned! OTP: ${data.otp ?? "—"} · Rider: ${data.deliveryBoyName ?? "—"}`);
             setAssignOrderId("");
+            // Remove from unassigned list
+            setUnassignedOrders((prev) => prev.filter((o) => o._id !== oid));
             loadBoys();
         } catch (err: unknown) { notify(err instanceof Error ? err.message : "Error", "err"); }
-        finally { setAssigning(false); }
+        finally { setAssigning(false); setAssigningOrderId(null); }
     };
 
     const filteredBoys = boys.filter((b) =>
@@ -167,7 +195,11 @@ export default function DeliveryAdminDashboard() {
                     {NAV.map(({ id, label, icon: Icon }) => (
                         <button key={id} onClick={() => setActive(id)}
                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active === id ? "bg-orange-500/20 text-orange-300 border border-orange-500/20" : "text-slate-400 hover:text-white hover:bg-white/[0.05]"}`}>
-                            <Icon size={15} />{label}{active === id && <ChevronRight size={13} className="ml-auto" />}
+                            <Icon size={15} />{label}
+                            {id === "assign" && unassignedOrders.length > 0 && (
+                                <span className="ml-auto text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full border border-red-500/20">{unassignedOrders.length}</span>
+                            )}
+                            {active === id && <ChevronRight size={13} className="ml-auto" />}
                         </button>
                     ))}
                 </nav>
@@ -292,20 +324,79 @@ export default function DeliveryAdminDashboard() {
                     {/* ══ ASSIGN ORDERS ═════════════════════════════════════════════════ */}
                     {active === "assign" && (
                         <div className="space-y-6">
+                            {/* Manual assign by Order ID */}
                             <div className="rounded-2xl bg-[#1f1208] border border-white/[0.06] p-6 max-w-lg">
                                 <h2 className="text-sm font-semibold mb-4 flex items-center gap-2"><Truck size={14} className="text-orange-400" />Auto-Assign Delivery Boy</h2>
-                                <p className="text-xs text-slate-400 mb-4">The system will automatically find the nearest available rider to the order's store using geospatial search.</p>
+                                <p className="text-xs text-slate-400 mb-4">The system will automatically find the nearest available rider to the order&apos;s store using geospatial search.</p>
                                 <div className="space-y-3">
                                     <div>
                                         <label className="block text-xs text-slate-400 mb-1.5">Order ID</label>
                                         <input type="text" placeholder="Paste full Order ID…" value={assignOrderId} onChange={(e) => setAssignOrderId(e.target.value)}
                                             className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm placeholder-slate-600 focus:outline-none focus:border-orange-500/40 font-mono" />
                                     </div>
-                                    <button onClick={handleAssign} disabled={assigning}
+                                    <button onClick={() => handleAssign()} disabled={assigning}
                                         className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
                                         {assigning ? <><Loader2 size={14} className="animate-spin" />Assigning…</> : <><Truck size={14} />Auto-Assign Nearest Rider</>}
                                     </button>
                                 </div>
+                            </div>
+
+                            {/* Unassigned orders list */}
+                            <div className="rounded-2xl bg-[#1f1208] border border-white/[0.06] p-6">
+                                <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                                    <Package size={14} className="text-orange-400" />
+                                    Unassigned Orders
+                                    {unassignedOrders.length > 0 && (
+                                        <span className="text-[10px] bg-red-500/15 text-red-300 px-2 py-0.5 rounded-full border border-red-500/20 ml-1">{unassignedOrders.length} pending</span>
+                                    )}
+                                </h2>
+                                {unassignedOrders.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <CheckCircle size={32} className="text-emerald-500/30 mx-auto mb-3" />
+                                        <p className="text-slate-500 text-sm">All orders have been assigned! 🎉</p>
+                                        <p className="text-slate-600 text-xs mt-1">New paid orders will appear here automatically.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {unassignedOrders.map((order) => {
+                                            const isAssigningThis = assigningOrderId === order._id;
+                                            const customer = typeof order.userId === "object" ? order.userId : null;
+                                            return (
+                                                <div key={order._id} className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-orange-500/20 transition-all">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                                                <span className="text-xs font-bold text-orange-200">#{order._id.slice(-7).toUpperCase()}</span>
+                                                                <span className="text-[10px] bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/20">₹{order.totalAmount}</span>
+                                                                <span className="text-[10px] bg-red-500/15 text-red-300 px-2 py-0.5 rounded-full border border-red-500/20">Unassigned</span>
+                                                            </div>
+                                                            {order.address && (
+                                                                <p className="text-[10px] text-slate-400">{order.address.fullName} · {order.address.city} · {order.address.phone}</p>
+                                                            )}
+                                                            {customer && (
+                                                                <p className="text-[10px] text-slate-500">Customer: {customer.name} · {customer.mobile || customer.email}</p>
+                                                            )}
+                                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                {order.items.slice(0, 4).map((it, j) => (
+                                                                    <span key={j} className="text-[9px] bg-white/[0.04] text-slate-400 px-1.5 py-0.5 rounded-full">{it.name} ×{it.quantity}</span>
+                                                                ))}
+                                                                {order.items.length > 4 && <span className="text-[9px] text-slate-500">+{order.items.length - 4} more</span>}
+                                                            </div>
+                                                            <p className="text-[9px] text-slate-600 mt-1">{new Date(order.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleAssign(order._id)}
+                                                            disabled={isAssigningThis}
+                                                            className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 rounded-xl text-xs font-semibold transition-colors"
+                                                        >
+                                                            {isAssigningThis ? <><Loader2 size={12} className="animate-spin" />Assigning…</> : <><Truck size={12} />Assign</>}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Performance table */}

@@ -126,8 +126,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 4. Atomic stock decrement + Order creation ────────────────────────────
-    const mongoSession = await mongoose.startSession();
-    mongoSession.startTransaction();
+    // NOTE: Using individual atomic operations instead of transactions
+    // to support standalone MongoDB (no replica set required).
+    // Each findOneAndUpdate is atomic on its own.
 
     try {
         for (const item of enrichedItems) {
@@ -137,8 +138,7 @@ export async function POST(req: NextRequest) {
                     product_id: item.groceryId,
                     stock: { $gte: item.quantity }, // atomic guard
                 },
-                { $inc: { stock: -item.quantity } },
-                { session: mongoSession }
+                { $inc: { stock: -item.quantity } }
             );
 
             if (!result) {
@@ -152,33 +152,24 @@ export async function POST(req: NextRequest) {
             .update(`${session.user.id}:${Date.now()}:${Math.random()}`)
             .digest("hex");
 
-        const [order] = await Order.create(
-            [
-                {
-                    userId: session.user.id,
-                    items: enrichedItems,
-                    totalAmount: serverTotal,
-                    paymentMethod: paymentMethod || "UPI",
-                    paymentStatus: "paid",
-                    orderStatus: "delivered",
-                    type: "selfCheckout",
-                    store_id,
-                    // Store the receipt token and fraud flag in a dedicated field
-                    deliveryOtp: receiptToken.slice(0, 8).toUpperCase(), // short token
-                    ...(fraudReport.shouldFlag && { refundReason: "Fraud flag: " + fraudReport.failures.map((f) => f.reason).join("; ") }),
-                },
-            ],
-            { session: mongoSession }
-        );
-
-        await mongoSession.commitTransaction();
+        const order = await Order.create({
+            userId: session.user.id,
+            items: enrichedItems,
+            totalAmount: serverTotal,
+            paymentMethod: paymentMethod || "UPI",
+            paymentStatus: "paid",
+            orderStatus: "delivered",
+            type: "selfCheckout",
+            store_id,
+            deliveryOtp: receiptToken.slice(0, 8).toUpperCase(),
+            ...(fraudReport.shouldFlag && { refundReason: "Fraud flag: " + fraudReport.failures.map((f) => f.reason).join("; ") }),
+        });
 
         return NextResponse.json(
             {
                 message: "Self-checkout complete ✓",
                 orderId: order._id!.toString(),
                 receiptToken: receiptToken.slice(0, 8).toUpperCase(),
-                // Include full token in QR data
                 qrData: JSON.stringify({
                     orderId: order._id!.toString(),
                     token: receiptToken,
@@ -195,11 +186,8 @@ export async function POST(req: NextRequest) {
             { status: 201 }
         );
     } catch (err: unknown) {
-        await mongoSession.abortTransaction();
         const msg = err instanceof Error ? err.message : "Server error";
         console.error("Self-checkout error:", err);
         return NextResponse.json({ message: msg }, { status: 500 });
-    } finally {
-        await mongoSession.endSession();
     }
 }

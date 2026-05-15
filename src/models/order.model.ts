@@ -37,10 +37,17 @@ export interface IOrder {
         longitude?: number;
     };
 
+    /** Sum of (item.price × qty) before delivery and discounts */
+    productTotal: number;
+    /** Delivery fee charged (0 if free delivery) */
+    deliveryFee: number;
+    /** Monetary discount from offers / coupons */
+    discountAmount: number;
+    /** Final amount charged = productTotal + deliveryFee − discountAmount */
     totalAmount: number;
     paymentMethod: string;
     paymentStatus: "pending" | "paid" | "failed" | "refunded";
-    orderStatus: "placed" | "confirmed" | "outForDelivery" | "delivered" | "cancelled" | "refunded";
+    orderStatus: "placed" | "pendingAcceptance" | "confirmed" | "outForDelivery" | "delivered" | "cancelled" | "refunded";
 
     /** online = delivery, offline = POS sale, selfCheckout = scan-and-go */
     type: "online" | "offline" | "selfCheckout";
@@ -58,6 +65,8 @@ export interface IOrder {
     // ── Refund fields ────────────────────────────────────────────────────────
     refundStatus?: "none" | "requested" | "approved" | "rejected";
     refundReason?: string;
+    /** The exact amount refunded — equals productTotal only, NOT deliveryFee, NOT discountAmount */
+    refundAmount?: number;
 
     createdAt?: Date;
     updatedAt?: Date;
@@ -87,6 +96,9 @@ const orderSchema = new mongoose.Schema<IOrder>(
             latitude: { type: Number },
             longitude: { type: Number },
         },
+        productTotal: { type: Number, default: 0 },
+        deliveryFee: { type: Number, default: 0 },
+        discountAmount: { type: Number, default: 0 },
         totalAmount: { type: Number, required: true },
         paymentMethod: { type: String, default: "UPI" },
         paymentStatus: {
@@ -96,7 +108,7 @@ const orderSchema = new mongoose.Schema<IOrder>(
         },
         orderStatus: {
             type: String,
-            enum: ["placed", "confirmed", "outForDelivery", "delivered", "cancelled", "refunded"],
+            enum: ["placed", "pendingAcceptance", "confirmed", "outForDelivery", "delivered", "cancelled", "refunded"],
             default: "placed",
         },
         type: {
@@ -114,6 +126,7 @@ const orderSchema = new mongoose.Schema<IOrder>(
         // Refund
         refundStatus: { type: String, enum: ["none", "requested", "approved", "rejected"], default: "none" },
         refundReason: { type: String },
+        refundAmount: { type: Number, default: 0 },
     },
     { timestamps: true }
 );

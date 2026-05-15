@@ -37,13 +37,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: "No items in bill" }, { status: 400 });
     }
 
-    const mongoSession = await mongoose.startSession();
-    mongoSession.startTransaction();
+    // NOTE: Using individual atomic operations instead of transactions
+    // to support standalone MongoDB (no replica set required).
 
     try {
         // 1️⃣  Validate & decrement stock for each line-item
         for (const item of items) {
-            const product = await Product.findById(item.groceryId).session(mongoSession);
+            const product = await Product.findById(item.groceryId);
 
             if (!product) {
                 throw new Error(`Product not found: ${item.groceryId}`);
@@ -60,29 +60,21 @@ export async function POST(req: NextRequest) {
                 {
                     $inc: { stock: -item.quantity },
                     $set: { isActive: newStock > 0 },
-                },
-                { session: mongoSession }
+                }
             );
         }
 
         // 2️⃣  Create an offline Order document
-        const [order] = await Order.create(
-            [
-                {
-                    userId: session.user.id,    // cashier / admin who billed the sale
-                    items,
-                    totalAmount,
-                    paymentMethod,
-                    paymentStatus: "paid",
-                    orderStatus: "delivered",   // already handed to the customer
-                    type: "offline",
-                    ...(store_id && { store_id }),
-                },
-            ],
-            { session: mongoSession }
-        );
-
-        await mongoSession.commitTransaction();
+        const order = await Order.create({
+            userId: session.user.id,    // cashier / admin who billed the sale
+            items,
+            totalAmount,
+            paymentMethod,
+            paymentStatus: "paid",
+            orderStatus: "delivered",   // already handed to the customer
+            type: "offline",
+            ...(store_id && { store_id }),
+        });
 
         return NextResponse.json(
             {
@@ -103,13 +95,10 @@ export async function POST(req: NextRequest) {
             { status: 201 }
         );
     } catch (err: unknown) {
-        await mongoSession.abortTransaction();
         const message = err instanceof Error ? err.message : "Server error";
         console.error("Billing error:", err);
         const status = message.includes("Insufficient stock") ? 409 : 500;
         return NextResponse.json({ message }, { status });
-    } finally {
-        await mongoSession.endSession();
     }
 }
 

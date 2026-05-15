@@ -70,7 +70,7 @@ export default function Nav({ user }: Props) {
     }, [profileOpen]);
 
     return (
-        <>
+        <div>
             {/* Gradient top accent line */}
             <div className="fixed top-0 left-0 right-0 h-0.5 z-[60] bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
 
@@ -380,6 +380,6 @@ export default function Nav({ user }: Props) {
                     )}
                 </AnimatePresence>
             </nav>
-        </>
+        </div>
     );
 }

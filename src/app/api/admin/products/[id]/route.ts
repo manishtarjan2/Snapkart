@@ -27,8 +27,9 @@ export async function PATCH(
 
     // Build only the fields that were sent — never allow arbitrary keys
     const allowed = [
-        "name", "price", "category", "description",
+        "name", "price", "category", "subcategory", "description",
         "barcode", "stock", "store_location", "image",
+        "discount", "brand", "unit", "isActive", "tags",
     ] as const;
 
     const updateFields: Record<string, unknown> = {};
