@@ -4,96 +4,126 @@ import connectDb from "@/lib/db";
 import Product from "@/models/product.model";
 import { NextRequest, NextResponse } from "next/server";
 
-// ─── Allowed roles ───────────────────────────────────────────────────────────
-const ALLOWED_ROLES = ["admin", "storeAdmin", "superAdmin", "productAdmin"] as const;
+const ALLOWED_ROLES = [
+    "admin",
+    "storeAdmin",
+    "superAdmin",
+    "productAdmin",
+] as const;
 
-// ────────────────────────────────────────────────────────────────────────────
-// POST /api/admin/add-grocery
-//   Add a new product to the global catalogue.
-//
-// Accepts multipart/form-data:
-//   name        (string, required)
-//   category    (string, required)
-//   price       (number, required)
-//   stock       (number, default 0)
-//   description (string, optional)
-//   barcode     (string, optional — globally unique)
-//   brand       (string, optional)
-//   unit        (string, optional  e.g. "500g", "1L")
-//   discount    (number 0-100, optional)
-//   file        (image, optional)
-// ────────────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-    await connectDb();
-
-    // ── Auth & RBAC ──────────────────────────────────────────────────────────
-    const session = await auth();
-    if (!session?.user?.role || !ALLOWED_ROLES.includes(session.user.role as typeof ALLOWED_ROLES[number])) {
-        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
-
     try {
-        const fd = await req.formData();
+        // Connect DB
+        await connectDb();
 
-        // ── Required fields ──────────────────────────────────────────────────
-        const name     = (fd.get("name")     as string | null)?.trim();
-        const category = (fd.get("category") as string | null)?.trim();
-        const priceRaw = (fd.get("price")    as string | null)?.trim();
+        // Authentication
+        const session = await auth();
 
-        if (!name || !category || !priceRaw) {
+        if (
+            !session?.user?.role ||
+            !ALLOWED_ROLES.includes(
+                session.user.role as (typeof ALLOWED_ROLES)[number]
+            )
+        ) {
             return NextResponse.json(
-                { message: "name, category and price are required" },
+                { message: "Forbidden" },
+                { status: 403 }
+            );
+        }
+
+        // Read FormData
+        const formData = await req.formData();
+
+        const name = formData.get("name")?.toString().trim();
+        const category = formData.get("category")?.toString().trim();
+        const priceString = formData.get("price")?.toString().trim();
+
+        if (!name || !category || !priceString) {
+            return NextResponse.json(
+                {
+                    message: "name, category and price are required",
+                },
                 { status: 400 }
             );
         }
 
-        const price = Number(priceRaw);
+        const price = Number(priceString);
+
         if (isNaN(price) || price < 0) {
-            return NextResponse.json({ message: "price must be a non-negative number" }, { status: 400 });
+            return NextResponse.json(
+                {
+                    message: "Invalid price",
+                },
+                { status: 400 }
+            );
         }
 
-        // ── Optional fields ──────────────────────────────────────────────────
-        const description = (fd.get("description") as string | null)?.trim() || undefined;
-        const barcodeRaw  = (fd.get("barcode")     as string | null)?.trim();
-        const brand       = (fd.get("brand")        as string | null)?.trim() || undefined;
-        const unit        = (fd.get("unit")         as string | null)?.trim() || undefined;
-        const stockRaw    = fd.get("stock")    as string | null;
-        const discountRaw = fd.get("discount") as string | null;
-        const file        = fd.get("file")     as Blob | null;
+        const description =
+            formData.get("description")?.toString().trim() || "";
 
-        const stock    = stockRaw    ? Math.max(0, Number(stockRaw))    : 0;
-        const discount = discountRaw ? Math.min(100, Math.max(0, Number(discountRaw))) : 0;
-        const barcode  = barcodeRaw || undefined;
+        const barcode =
+            formData.get("barcode")?.toString().trim() || undefined;
 
-        // ── Image upload ─────────────────────────────────────────────────────
-        let imageUrl: string | undefined;
-        if (file && (file as File).size > 0) {
-            imageUrl = await uploadOnCloudinary(file);
+        const brand =
+            formData.get("brand")?.toString().trim() || "";
+
+        const unit =
+            formData.get("unit")?.toString().trim() || "";
+
+        const stock = Number(formData.get("stock") || 0);
+
+        const discount = Number(formData.get("discount") || 0);
+
+        const imageFile = formData.get("file") as File | null;
+
+        let image = "";
+
+        // Upload Image
+        if (imageFile && imageFile.size > 0) {
+            try {
+                image = await uploadOnCloudinary(imageFile);
+            } catch (error) {
+                console.error("Cloudinary Error:", error);
+                // Fallback to empty image instead of blocking product creation
+                console.warn("Continuing product creation without image due to Cloudinary error.");
+                image = ""; 
+            }
         }
 
-        // ── Create product ───────────────────────────────────────────────────
         const product = await Product.create({
             name,
-            price,
             category,
+            price,
             description,
             barcode,
             brand,
             unit,
-            discount,
             stock,
-            inStock: stock > 0,   // always derived from stock — never stale
-            image: imageUrl,
+            discount,
+            image,
+            inStock: stock > 0,
         });
 
-        return NextResponse.json(JSON.parse(JSON.stringify(product)), { status: 201 });
+        return NextResponse.json(product, {
+            status: 201,
+        });
+    } catch (error: any) {
+        console.error("Add Grocery Error:", error);
 
-    } catch (err: unknown) {
-        console.error("[POST /api/admin/add-grocery]", err);
-        // Duplicate barcode error
-        if ((err as { code?: number }).code === 11000) {
-            return NextResponse.json({ message: "A product with this barcode already exists" }, { status: 409 });
+        if (error?.code === 11000) {
+            return NextResponse.json(
+                {
+                    message: "Barcode already exists",
+                },
+                { status: 409 }
+            );
         }
-        return NextResponse.json({ message: "Failed to add product" }, { status: 500 });
+
+        return NextResponse.json(
+            {
+                message: error?.message || "Internal Server Error",
+            },
+            { status: 500 }
+        );
     }
 }
