@@ -121,6 +121,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
   trustHost: true,
 
-  // NextAuth v5 reads AUTH_SECRET automatically; we also pass it explicitly for safety
-  secret: process.env.AUTH_SECRET ?? process.env.Auth_SECRET,
+  secret: process.env.AUTH_SECRET ?? process.env.Auth_SECRET ?? "fallback_secret_for_development_only_please_change",
 });
