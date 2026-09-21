@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   title: "Snapkart",
   description: "Snapkart online shopping and self-checkout",
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
   },
 };
 
