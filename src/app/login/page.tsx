@@ -16,7 +16,7 @@ const GoogleIcon = () => (
 );
 
 function Login() {
-  const [email, setEmail] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -32,7 +32,7 @@ function Login() {
 
     try {
       const result = await signIn("credentials", {
-        email,
+        identifier,
         password,
         redirect: false
       })
@@ -79,11 +79,11 @@ function Login() {
         <div className='relative'>
           <Mail className='absolute left-3 top-3.5 w-5 h-5 text-gray-400' />
           <input
-            type="email"
-            placeholder="Enter your Email"
+            type="text"
+            placeholder="Enter your Email or phone number"
             className='w-full border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-gray-800 focus:ring-2 focus:ring-green-500 focus:outline-none'
-            onChange={(e) => setEmail(e.target.value)}
-            value={email}
+            onChange={(e) => setIdentifier(e.target.value)}
+            value={identifier}
           />
         </div>
 
@@ -121,7 +121,7 @@ function Login() {
         )}
 
         {(() => {
-          const formValidation = email !== "" && password !== ""
+          const formValidation = identifier !== "" && password !== ""
           return (
             <button
               disabled={!formValidation || loading}

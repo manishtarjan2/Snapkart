@@ -19,7 +19,7 @@ const ROLE_INFO = [
 ];
 
 export default function AdminLogin() {
-    const [email, setEmail] = useState("");
+    const [identifier, setIdentifier] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ export default function AdminLogin() {
 
         try {
             const result = await signIn("credentials", {
-                email,
+                identifier,
                 password,
                 redirect: false,
             });
@@ -63,7 +63,7 @@ export default function AdminLogin() {
         }
     };
 
-    const formValid = email !== "" && password !== "";
+    const formValid = identifier !== "" && password !== "";
 
     return (
         <div className="min-h-screen bg-[#080c14] flex items-center justify-center p-6 relative overflow-hidden">
@@ -128,15 +128,15 @@ export default function AdminLogin() {
                         {/* Email */}
                         <div>
                             <label className="block text-[10px] text-slate-400 mb-1.5 uppercase tracking-wider">
-                                Work Email
+                                Work email or phone number
                             </label>
                             <div className="relative">
                                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                 <input
-                                    type="email"
-                                    placeholder="admin@snapkart.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    type="text"
+                                    placeholder="admin@snapkart.com or phone number"
+                                    value={identifier}
+                                    onChange={(e) => setIdentifier(e.target.value)}
                                     required
                                     className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500/50 focus:bg-white/[0.06] transition-all"
                                 />

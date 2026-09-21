@@ -9,16 +9,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: { label: "Email", type: "text" },
+        identifier: { label: "Email or phone number", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         try {
           await connectDb();
-          const email = credentials.email as string;
+          const identifier = String(credentials.identifier ?? "").trim();
+          const email = identifier.toLowerCase();
           const password = credentials.password as string;
 
-          const user = await User.findOne({ email });
+          const user = await User.findOne({
+            $or: [{ email }, { mobile: identifier }],
+          });
           if (!user) throw new Error("No user found with this email");
 
           const isMatch = await bcrypt.compare(password, user.password ?? "");
