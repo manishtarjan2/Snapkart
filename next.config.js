@@ -8,9 +8,6 @@ const nextConfig = {
     ],
   },
   allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', '_mongodb._tcp.cluster0.v3p7nue.mongodb.net', 'localhost', '_mongodb._tcp.cluster0.v3p7nue.mongodb.net', 'snapkart-rust.vercel.app'],
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 };
 
 module.exports = nextConfig;
